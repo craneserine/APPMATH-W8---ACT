@@ -9,10 +9,15 @@ public class ItemSpawner : MonoBehaviour
     public Item itemToSpawn;
     public float speed = 0.5f;
     public Transform parent;
-    public float spawnInterval = 1f;
+    public float minHorizontal = -1f; // Minimum x position for spawning
+    public float maxHorizontal = 1f;  // Maximum x position for spawning
+    public float minVertical = 5f;     // Minimum y position for spawning
+    public float maxVertical = 5f;     // Maximum y position for spawning
+    public float removeAtDistance = -5f; // Distance at which to remove items
+    public float spawnInterval = 1f;   // Time between spawns
 
-    private CameraComponent cameraComponent;
     private List<Item> items = new List<Item>();
+    private CameraComponent cameraComponent;
 
     private void Start()
     {
@@ -24,45 +29,60 @@ public class ItemSpawner : MonoBehaviour
     {
         if (cameraComponent != null)
         {
-            // Randomize the x position from -1, 0, or 1
-            float randomX = GetRandomLanePosition();
-            Vector2 spawnPosition = new Vector2(randomX, 5f); // Set a height above the player
+            Vector3 spawnPosition = GetRandomLocation();
             var spawnedItem = Instantiate(itemToSpawn, parent);
-            spawnedItem.transform.position = new Vector3(spawnPosition.x, spawnPosition.y, 0); // Spawn at the random position
+            spawnedItem.transform.position = spawnPosition; // Spawn at the random position
             items.Add(spawnedItem); // Add the spawned item to the list
         }
     }
 
-    private float GetRandomLanePosition()
+    private Vector3 GetRandomLocation()
     {
-        // Randomly choose between -1, 0, and 1
-        int randomLane = Random.Range(0, 3); // Generates 0, 1, or 2
-        return randomLane - 1; // Convert to -1, 0, or 1
+        float xRand = Random.Range(minHorizontal, maxHorizontal);
+        float yRand = Random.Range(minVertical, maxVertical);
+        float zRand = 10f; // Spawn items at a distance in the z-axis
+
+        return new Vector3(xRand, yRand, zRand); // Return the random position
     }
 
     private void Update()
     {
-        // Use a for loop to avoid modifying the list while iterating
         for (int i = items.Count - 1; i >= 0; i--)
         {
-            if (items[i] != null)
+            Item item = items[i];
+
+            if (item == null)
             {
-                ItemMover(items[i]);
+                items.RemoveAt(i);
+                continue;
             }
-            else
+
+            ItemMover(item);
+
+            if (item.transform.position.z < removeAtDistance)
             {
-                items.RemoveAt(i); // Remove the item if it has been destroyed
+                RemoveItem(item);
             }
+        }
+    }
+
+    private void RemoveItem(Item item)
+    {
+        if (items.Contains(item))
+        {
+            items.Remove(item);
+        }
+
+        if (item != null)
+        {
+            Destroy(item.gameObject);
         }
     }
 
     private void ItemMover(Item item)
     {
-        // Convert the vanishing point to Vector3
-        Vector3 vanishingPoint3D = new Vector3(cameraComponent.vanishingPoint.x, cameraComponent.vanishingPoint.y, 0);
-        
-        // Move the item towards the vanishing point
-        Vector3 direction = (vanishingPoint3D - item.transform.position).normalized; // Calculate direction to vanishing point
-        item.transform.position += direction * (speed * Time.deltaTime); // Move towards the vanishing point
+        // Move the item towards the player
+        Vector3 direction = new Vector3(0, 0, -speed * Time.deltaTime); // Move towards the player
+        item.transform.position += direction; // Update the item's position
     }
 }
